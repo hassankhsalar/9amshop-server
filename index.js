@@ -27,9 +27,9 @@ async function run() {
     const usersCollection = client.db('9amshop').collection('users');
     const shopsCollection = client.db('9amshop').collection('shops');
 
-    // =========================
-    // ✅ Signup API
-    // =========================
+    
+    // Signup API
+    
     app.post('/signup', async (req, res) => {
       const { username, email, password, shopNames } = req.body;
 
@@ -37,10 +37,10 @@ async function run() {
         return res.status(400).json({ message: 'Invalid request data.' });
       }
 
-      // Normalize shop names for comparison
+      
       const normalizedNames = shopNames.map(name => name.trim().toLowerCase());
 
-      // Check for existing shops globally
+      // Checks for shops
       const existingShops = await shopsCollection.find({
         name: { $in: normalizedNames },
       }).toArray();
@@ -52,7 +52,7 @@ async function run() {
         });
       }
 
-      // Insert user
+      // Inserting user
       const newUser = {
         username,
         email,
@@ -61,7 +61,7 @@ async function run() {
       };
       const userResult = await usersCollection.insertOne(newUser);
 
-      // Insert shop names globally
+      // Inserts shop names globally
       const shopDocs = shopNames.map(name => ({
         name: name.trim().toLowerCase(),
         ownerId: userResult.insertedId,
@@ -73,8 +73,7 @@ async function run() {
       res.status(201).json({ message: 'Signup successful!' });
     });
 
-    // =========================
-    // Other APIs (if needed)
+  
     // =========================
 
   } finally {
