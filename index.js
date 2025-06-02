@@ -1,49 +1,93 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+require('dotenv').config();
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
 
-//DB_USER=9amtrainee
-//DB_PASS=caVwa7kNvi79yt5H
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.c9iiq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-
-
-const uri = "mongodb+srv://<db_username>:<db_password>@cluster0.c9iiq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    await client.db('admin').command({ ping: 1 });
+    console.log('Connected to MongoDB!');
+
+    const usersCollection = client.db('9amshop').collection('users');
+    const shopsCollection = client.db('9amshop').collection('shops');
+
+    // =========================
+    // ✅ Signup API
+    // =========================
+    app.post('/signup', async (req, res) => {
+      const { username, email, password, shopNames } = req.body;
+
+      if (!username || !email || !Array.isArray(shopNames) || shopNames.length < 3) {
+        return res.status(400).json({ message: 'Invalid request data.' });
+      }
+
+      // Normalize shop names for comparison
+      const normalizedNames = shopNames.map(name => name.trim().toLowerCase());
+
+      // Check for existing shops globally
+      const existingShops = await shopsCollection.find({
+        name: { $in: normalizedNames },
+      }).toArray();
+
+      if (existingShops.length > 0) {
+        const takenNames = existingShops.map(shop => shop.name);
+        return res.status(409).json({
+          message: `These shop names are already taken: ${takenNames.join(', ')}`,
+        });
+      }
+
+      // Insert user
+      const newUser = {
+        username,
+        email,
+        shopNames,
+        createdAt: new Date(),
+      };
+      const userResult = await usersCollection.insertOne(newUser);
+
+      // Insert shop names globally
+      const shopDocs = shopNames.map(name => ({
+        name: name.trim().toLowerCase(),
+        ownerId: userResult.insertedId,
+        createdAt: new Date(),
+      }));
+
+      await shopsCollection.insertMany(shopDocs);
+
+      res.status(201).json({ message: 'Signup successful!' });
+    });
+
+    // =========================
+    // Other APIs (if needed)
+    // =========================
+
   } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
+    // Leave the client open while the server runs
+    // await client.close();
   }
 }
 run().catch(console.dir);
 
-
-
-///////////
 app.get('/', (req, res) => {
-    res.send('9am is waiting')
-})
+  res.send('9am is waiting');
+});
 
 app.listen(port, () => {
-    console.log(`9am is waiting at port ${port}`);
-})
+  console.log(`🚀 9am server is running on port ${port}`);
+});
