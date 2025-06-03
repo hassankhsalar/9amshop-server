@@ -1,8 +1,8 @@
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
 const app = express();
-require('dotenv').config();
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require("dotenv").config();
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 
 app.use(cors());
@@ -21,34 +21,43 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
-    await client.db('admin').command({ ping: 1 });
-    console.log('Connected to MongoDB!');
+    await client.db("admin").command({ ping: 1 });
+    console.log("Connected to MongoDB!");
 
-    const usersCollection = client.db('9amshop').collection('users');
-    const shopsCollection = client.db('9amshop').collection('shops');
+    const usersCollection = client.db("9amshop").collection("users");
+    const shopsCollection = client.db("9amshop").collection("shops");
 
-    
     // Signup API
-    
-    app.post('/signup', async (req, res) => {
+
+    app.post("/signup", async (req, res) => {
       const { username, email, password, shopNames } = req.body;
 
-      if (!username || !email || !Array.isArray(shopNames) || shopNames.length < 3) {
-        return res.status(400).json({ message: 'Invalid request data.' });
+      if (
+        !username ||
+        !email ||
+        !Array.isArray(shopNames) ||
+        shopNames.length < 3
+      ) {
+        return res.status(400).json({ message: "Invalid request data." });
       }
 
-      
-      const normalizedNames = shopNames.map(name => name.trim().toLowerCase());
+      const normalizedNames = shopNames.map((name) =>
+        name.trim().toLowerCase()
+      );
 
       // Checks for shops
-      const existingShops = await shopsCollection.find({
-        name: { $in: normalizedNames },
-      }).toArray();
+      const existingShops = await shopsCollection
+        .find({
+          name: { $in: normalizedNames },
+        })
+        .toArray();
 
       if (existingShops.length > 0) {
-        const takenNames = existingShops.map(shop => shop.name);
+        const takenNames = existingShops.map((shop) => shop.name);
         return res.status(409).json({
-          message: `These shop names are already taken: ${takenNames.join(', ')}`,
+          message: `These shop names are already taken: ${takenNames.join(
+            ", "
+          )}`,
         });
       }
 
@@ -62,7 +71,7 @@ async function run() {
       const userResult = await usersCollection.insertOne(newUser);
 
       // Inserts shop names globally
-      const shopDocs = shopNames.map(name => ({
+      const shopDocs = shopNames.map((name) => ({
         name: name.trim().toLowerCase(),
         ownerId: userResult.insertedId,
         createdAt: new Date(),
@@ -70,12 +79,24 @@ async function run() {
 
       await shopsCollection.insertMany(shopDocs);
 
-      res.status(201).json({ message: 'Signup successful!' });
+      res.status(201).json({ message: "Signup successful!" });
     });
 
-  
-    // =========================
+    //========
+    app.get("/user-shops", async (req, res) => {
+      const email = req.query.email;
+      if (!email) return res.status(400).json({ message: "Email required" });
 
+      try {
+        const user = await usersCollection.findOne({ email });
+        res.json({ shops: user?.shopNames || [] });
+      } catch (error) {
+        console.error("Error fetching user shops:", error);
+        res.status(500).json({ message: "Server error" });
+      }
+    });
+
+    // =========================
   } finally {
     // Leave the client open while the server runs
     // await client.close();
@@ -83,8 +104,8 @@ async function run() {
 }
 run().catch(console.dir);
 
-app.get('/', (req, res) => {
-  res.send('9am is waiting');
+app.get("/", (req, res) => {
+  res.send("9am is waiting");
 });
 
 app.listen(port, () => {
