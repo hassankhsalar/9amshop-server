@@ -1,11 +1,15 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const app = express();
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.c9iiq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -26,6 +30,28 @@ async function run() {
 
     const usersCollection = client.db("9amshop").collection("users");
     const shopsCollection = client.db("9amshop").collection("shops");
+
+    //Authentication related API's
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_SECRET, {
+        expiresIn: "168h",
+      });
+      res.send({ token });
+    });
+
+    const verifyJWT = (req, res, next) => {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).send({ message: "Unauthorized" });
+
+      const token = authHeader.split(" ")[1];
+      jwt.verify(token, "secret", (err, decoded) => {
+        if (err) return res.status(403).send({ message: "Forbidden" });
+
+        req.decoded = decoded;
+        next();
+      });
+    };
 
     // Signup API
 
