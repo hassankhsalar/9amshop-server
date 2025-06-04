@@ -8,7 +8,7 @@ const port = process.env.PORT || 5000;
 
 app.use(cors({
   origin: [
-    'https://steady-dolphin-3350d4.netlify.app/',
+    'https://steady-dolphin-3350d4.netlify.app',
     'http://localhost:5173'
   ],
   credentials: true
